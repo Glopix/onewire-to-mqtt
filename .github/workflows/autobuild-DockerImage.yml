@@ -1,0 +1,71 @@
+name: Autoupdate build on base-image change (python)
+
+on:
+  schedule:
+    - cron:  '42 21 * * */2'
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: 'Force build regardless of base image update'
+        required: true
+        default: 'no'
+        type: choice
+        options:
+          - "no"
+          - "yes"
+
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check for new release of python
+    runs-on: ubuntu-latest
+    outputs:
+      needs-updating: ${{ steps.check.outputs.needs-updating || 'false' }}
+    steps:
+      - name: Check if update available
+        id: check
+        uses: lucacome/docker-image-update-checker@v1
+        with:
+          base-image: library/python:3.13-alpine
+          image: glopix/onewire-to-mqtt
+
+  build:
+    name: build new docker image
+    needs: [check]
+    if: needs.check.outputs.needs-updating == 'true' || github.event.inputs.force_build == 'yes'
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64, linux/arm/v6, linux/arm/v7, linux/arm64/v8, linux/ppc64le, linux/s390x
+          push: true
+          tags: glopix/onewire-to-mqtt:latest
+          cache-from: type=registry,ref=glopix/onewire-to-mqtt:latest
+          cache-to: type=inline
+          debug: true
+
+      - name: Docker Hub Description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
