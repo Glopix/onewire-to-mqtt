@@ -1,0 +1,9 @@
+services:
+  onewire-to-mqtt:
+    image: glopix/onewire-to-mqtt
+    restart: unless-stopped
+    volumes:
+      - ./config.ini:/app/config.ini
+      - /sys/bus/w1/devices:/sys/bus/w1/devices:ro  # Read-only mount for sensor data
+    privileged: true  # Required for accessing hardware sensors
+
