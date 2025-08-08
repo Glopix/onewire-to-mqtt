@@ -61,7 +61,6 @@ jobs:
           tags: glopix/onewire-to-mqtt:latest
           cache-from: type=registry,ref=glopix/onewire-to-mqtt:latest
           cache-to: type=inline
-          debug: true
 
       - name: Docker Hub Description
         uses: peter-evans/dockerhub-description@v4
