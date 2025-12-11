@@ -1,8 +1,8 @@
 name: Autoupdate build on base-image change (python)
 
 on:
-  schedule:
-    - cron:  '42 21 * * */2'
+  schedule: # every Wednesday 21:42
+    - cron:  '42 21 * * 3'
   workflow_dispatch:
     inputs:
       force_build:
@@ -69,3 +69,34 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           short-description: ${{ github.event.repository.description }}
 
+
+  save-build-info:
+    name: save build info
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    if: needs.build.result == 'success' && needs.build.result != 'skipped'
+    permissions:
+      # Give the default GITHUB_TOKEN write permission to commit and push the
+      # added or changed files to the repository.
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository }}
+          ref: gh-workflows
+
+      - name: save last image build date and release date to files
+        run: |
+            TODAY=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            echo "$TODAY" > ./gh-workflow_image-build-date.txt
+
+      - name: Commit updated release data
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          branch: gh-workflows
+          file_pattern: 'gh-workflow_*.txt'
+          commit_message: "Update stored release info"
+          commit_user_name: GitHub Actions Bot
+          commit_user_email: github-actions-bot@none.dom
+          commit_author: GitHub Actions Bot <github-actions-bot@none.dom>
+          create_branch: true
